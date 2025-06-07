@@ -1,5 +1,5 @@
 import { createClient } from '@/utils/supabase/server'
-import { stripe } from './config'
+import { stripe } from './server'
 import { redirect } from 'next/navigation'
 
 export async function getOrCreateCustomer(userId: string, email: string) {
