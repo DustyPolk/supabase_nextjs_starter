@@ -80,16 +80,10 @@ export default async function PricingPage() {
                         priceId={plan.priceId}
                         userId={user?.id}
                         userEmail={user?.email}
-                        disabled={!user}
+                        disabled={false}
                       />
                     )}
                   </div>
-                  
-                  {!user && (
-                    <p className="mt-2 text-xs text-center text-gray-500">
-                      Please <a href="/login" className="underline">sign in</a> to subscribe
-                    </p>
-                  )}
                 </div>
                 
                 <div className="pt-6 pb-8 px-6 bg-gray-50">

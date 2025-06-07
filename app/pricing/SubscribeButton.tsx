@@ -45,15 +45,18 @@ export default function SubscribeButton({ priceId, userId, userEmail, disabled }
     }
   }
 
+  const isDisabled = disabled && userId // Only disable if explicitly disabled AND user exists
+  const buttonText = loading ? 'Loading...' : (!userId ? 'Sign in to subscribe' : 'Get started')
+
   return (
     <button
       onClick={handleSubscribe}
-      disabled={disabled || loading}
-      className={`block w-full bg-indigo-600 border border-transparent rounded-md py-2 text-sm font-semibold text-white text-center hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
-        disabled || loading ? 'opacity-50 cursor-not-allowed' : ''
+      disabled={isDisabled || loading}
+      className={`block w-full bg-indigo-600 border border-transparent rounded-md py-2 text-sm font-semibold text-white text-center hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors ${
+        isDisabled || loading ? 'opacity-50 cursor-not-allowed' : ''
       }`}
     >
-      {loading ? 'Loading...' : 'Get started'}
+      {buttonText}
     </button>
   )
 }
