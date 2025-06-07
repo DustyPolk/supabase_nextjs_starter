@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Next.js 15 + Supabase authentication starter template using TypeScript, Tailwind CSS v4, and server actions. The project demonstrates a complete authentication flow with email/password auth, protected routes, and session management.
+This is a complete SaaS starter template built with Next.js 15, Supabase authentication, and Stripe subscriptions using TypeScript, Tailwind CSS v4, and server actions. The project demonstrates a complete authentication flow with email/password auth, protected routes, session management, and subscription billing.
 
 ## Essential Commands
 
@@ -54,14 +54,44 @@ const { data: { user } } = await supabase.auth.getUser()
 if (!user) redirect('/login')
 ```
 
+### Subscription Flow
+1. **Stripe Integration** (`/utils/stripe/`)
+   - `config.ts`: Stripe client and pricing plans configuration
+   - `subscription.ts`: Helper functions for subscription management
+
+2. **Database Schema** (Supabase tables)
+   - `customers`: Links Supabase users to Stripe customers
+   - `subscriptions`: Stores subscription details and status
+   - `subscription_items`: Line items for subscriptions
+   - `invoices`: Invoice history and payment tracking
+
+3. **API Routes**
+   - `/api/webhooks/stripe/route.ts`: Handles Stripe webhook events
+   - `/api/create-checkout-session/route.ts`: Creates Stripe Checkout sessions
+   - `/api/create-portal-session/route.ts`: Creates billing portal sessions
+
+4. **Pages & Components**
+   - `/pricing`: Displays subscription plans with pricing
+   - `/dashboard`: User dashboard with subscription management
+   - `SubscriptionCard`: Component showing current subscription details
+
 ### Environment Configuration
 Required variables in `.env.local`:
 - `NEXT_PUBLIC_SUPABASE_URL`: Supabase project URL
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Public anonymous key
+- `STRIPE_SECRET_KEY`: Stripe secret key
+- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`: Stripe publishable key
+- `STRIPE_WEBHOOK_SECRET`: Stripe webhook endpoint secret
+- `STRIPE_STARTER_PRICE_ID`: Price ID for Starter plan
+- `STRIPE_PRO_PRICE_ID`: Price ID for Pro plan
+- `STRIPE_ENTERPRISE_PRICE_ID`: Price ID for Enterprise plan
 
 ### Key Dependencies
 - `@supabase/ssr`: Server-side rendering support for Supabase
 - `@supabase/supabase-js`: Core Supabase client
+- `stripe`: Stripe Node.js SDK
+- `@stripe/stripe-js`: Stripe JavaScript SDK
+- `@heroicons/react`: Icon components
 - Next.js 15 with App Router
 - Tailwind CSS v4 (using PostCSS)
 
@@ -72,11 +102,41 @@ When setting up a new Supabase project:
 2. Add redirect URLs in Authentication → URL Configuration:
    - `http://localhost:3000/auth/confirm`
    - Production URLs when deploying
+3. Run the subscription database migration to create the required tables
 
-## Testing Authentication Flow
+## Important Stripe Configuration
 
-1. Sign up creates user via Supabase (sends confirmation email by default)
-2. Email confirmation redirects to `/auth/confirm` then `/dashboard`
-3. Direct sign-in redirects to `/dashboard`
-4. Accessing protected routes while logged out redirects to `/login`
-5. Sign out clears session and redirects to `/login`
+When setting up Stripe:
+1. Create products and prices in the Stripe Dashboard or via API
+2. Update the price IDs in your environment variables
+3. Set up webhook endpoint pointing to `/api/webhooks/stripe`
+4. Configure webhook to listen for these events:
+   - `customer.subscription.created`
+   - `customer.subscription.updated`
+   - `customer.subscription.deleted`
+   - `invoice.paid`
+   - `invoice.payment_failed`
+
+## Testing Authentication & Subscription Flow
+
+1. **Authentication**:
+   - Sign up creates user via Supabase (sends confirmation email by default)
+   - Email confirmation redirects to `/auth/confirm` then `/dashboard`
+   - Direct sign-in redirects to `/dashboard`
+   - Accessing protected routes while logged out redirects to `/login`
+   - Sign out clears session and redirects to `/login`
+
+2. **Subscriptions**:
+   - Visit `/pricing` to view subscription plans
+   - Click "Get started" to initiate Stripe Checkout
+   - Successful payment creates subscription in database via webhook
+   - Dashboard shows current subscription status and billing management
+   - "Manage billing" button opens Stripe Customer Portal
+
+## Deployment Checklist
+
+1. Set up production Supabase project and update environment variables
+2. Set up production Stripe account and update keys/price IDs
+3. Configure Stripe webhook endpoint for production domain
+4. Update redirect URLs in Supabase dashboard
+5. Set `NEXT_PUBLIC_SITE_URL` environment variable for production domain
