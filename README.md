@@ -139,6 +139,16 @@ A complete starter template for Next.js with Supabase authentication pre-configu
   
 **Note**: Always use email confirmation in production for security!
 
+## Environment Variables
+
+Ensure you have a `.env.local` file by copying `.env.example`. This file should contain your Supabase and Stripe API keys.
+Specifically, for Stripe integration, you will need:
+- `STRIPE_SECRET_KEY`: Your Stripe secret key.
+- `STRIPE_WEBHOOK_SECRET`: Your Stripe webhook signing secret for the `stripe-webhooks` Edge Function.
+- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`: Your Stripe publishable key for client-side operations.
+
+These variables are used by Next.js API routes and Supabase Edge Functions. Remember to also set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` in your Supabase project's Edge Function settings.
+
 ## Project Structure
 
 ```

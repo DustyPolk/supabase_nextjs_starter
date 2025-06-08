@@ -1,51 +1,74 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/utils/supabase/server'
-import { createPortalSession } from '@/utils/stripe/subscription'
+import { NextResponse } from 'next/server';
+import Stripe from 'stripe'; // Standard Next.js import
 
-export async function POST(req: NextRequest) {
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: '2024-04-10',
+});
+
+const getURL = () => {
+  let url =
+    process?.env?.NEXT_PUBLIC_SITE_URL ?? // Set this to your site URL in production
+    process?.env?.NEXT_PUBLIC_VERCEL_URL ?? // Automatically set by Vercel.
+    'http://localhost:3000/';
+  // Make sure to include `https://` when not localhost.
+  url = url.includes('http') ? url : `https://${url}`;
+  // Make sure to include a trailing `/`.
+  url = url.charAt(url.length - 1) === '/' ? url : `${url}/`;
+  return url;
+};
+
+export async function POST(request: Request) {
   try {
-    const { userId } = await req.json()
+    const supabase = createRouteHandlerClient({ cookies });
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Missing userId' },
-        { status: 400 }
-      )
+    if (!user) {
+      return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
-    // Verify user is authenticated
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user || user.id !== userId) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
-    // Get the customer ID from the database
-    const { data: customer, error: customerError } = await supabase
-      .from('customers')
+    // Fetch the user's stripe_customer_id from their profile
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
       .select('stripe_customer_id')
-      .eq('user_id', userId)
-      .single()
+      .eq('id', user.id)
+      .single();
 
-    if (customerError || !customer?.stripe_customer_id) {
-      return NextResponse.json(
-        { error: 'No customer found' },
-        { status: 404 }
-      )
+    if (profileError || !profile?.stripe_customer_id) {
+      console.error('Error fetching profile or stripe_customer_id missing:', profileError);
+      return new NextResponse(JSON.stringify({ error: 'Stripe customer ID not found for this user.' }), {
+        status: 400, // Or 404 if preferred
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
-    const session = await createPortalSession(customer.stripe_customer_id)
+    const stripeCustomerId = profile.stripe_customer_id;
+    const returnUrl = `${getURL()}dashboard`; // URL to return to after portal session
 
-    return NextResponse.json({ url: session.url })
+    // Create a Stripe Billing Portal Session
+    const portalSession = await stripe.billingPortal.sessions.create({
+      customer: stripeCustomerId,
+      return_url: returnUrl,
+    });
+
+    if (!portalSession.url) {
+        throw new Error('Failed to create Stripe Customer Portal session: No URL returned.');
+    }
+
+    return NextResponse.json({ url: portalSession.url });
+
   } catch (error) {
-    console.error('Error creating portal session:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    console.error('Error creating Stripe Customer Portal session:', error);
+    return new NextResponse(JSON.stringify({ error: error.message || 'Failed to create customer portal session' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 }
